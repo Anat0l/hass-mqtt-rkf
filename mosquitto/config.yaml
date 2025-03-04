@@ -1,9 +1,9 @@
 ---
-version: 6.5.0 rkf
+version: 6.5.0a
 slug: mosquitto-rkf
 name: Mosquitto broker (RKf)
 description: An Open Source MQTT broker (RKf)
-url: https://github.com/Anat0l/hass-mqtt-rkf
+url: https://github.com/Anat0l/hass-mqtt-rkf/tree/main/mosquitto
 arch:
   - armhf
   - armv7
