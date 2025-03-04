@@ -4,7 +4,6 @@ slug: mosquitto
 name: Mosquitto broker (RKf)
 description: An Open Source MQTT broker (RKf)
 url: https://github.com/Anat0l/hass-mqtt-rkf
-codenotary: notary@home-assistant.io
 arch:
   - armhf
   - armv7
@@ -14,7 +13,6 @@ arch:
 auth_api: true
 discovery:
   - mqtt
-image: homeassistant/{arch}-addon-mosquitto
 map:
   - ssl
   - share
