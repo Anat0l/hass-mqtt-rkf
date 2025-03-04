@@ -1,5 +1,5 @@
 ---
-version: 6.5.0
+version: 6.5.0 rkf
 slug: mosquitto-rkf
 name: Mosquitto broker (RKf)
 description: An Open Source MQTT broker (RKf)
