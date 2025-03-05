@@ -42,7 +42,7 @@ RUN apt-get update \
        https://github.com/eclipse/mosquitto \
     \
     && cd mosquitto \
-#    && sed 's%if(mid == 0) return MOSQ_ERR_MALFORMED_PACKET;%//if(mid == 0) return MOSQ_ERR_MALFORMED_PACKET;%g' ./src/handle_subscribe.c -i.bak \
+    && sed 's%if(mid == 0) return MOSQ_ERR_MALFORMED_PACKET;%//if(mid == 0) return MOSQ_ERR_MALFORMED_PACKET;%g' ./src/handle_subscribe.c -i.bak \
     && make WITH_WEBSOCKETS=yes WITH_SRV=yes \
     && make install \
     && cd .. \
@@ -85,5 +85,9 @@ RUN apt-get update \
 
 # Copy rootfs
 COPY rootfs /
+
+RUN chmod a+x /etc/services.d/mosquitto/*
+RUN chmod a+x /etc/services.d/nginx/*
+RUN chmod a+x /etc/cont-init.d/*
 
 WORKDIR /
