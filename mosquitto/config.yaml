@@ -10,6 +10,7 @@ arch:
 auth_api: true
 discovery:
   - mqtt
+image: ghcr.io/anat0l/{arch}-addon-mosquitto-rkf
 map:
   - ssl
   - share
