@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Copy the official Mosquitto add-on and keep one local change.
 
-The official add-on is taken from home-assistant/addons. This script drops the
-prebuilt image so Home Assistant compiles the local Dockerfile, then inserts a
-build step that comments out Mosquitto's rejection of SUBSCRIBE packets whose
-packet identifier is 0.
+The official add-on is taken from home-assistant/addons. This script points
+`image` at the prebuilt GHCR images for this repository, then inserts a build
+step that comments out Mosquitto's rejection of SUBSCRIBE packets whose packet
+identifier is 0.
 
 The sync stops if that check is no longer exactly the expected three lines.
 A newer official release is not published with a patch that did not apply.
@@ -44,6 +44,7 @@ IDENTITY = {
     "description": "An Open Source MQTT broker (RKf)",
     "url": "https://github.com/Anat0l/hass-mqtt-rkf/tree/main/mosquitto",
 }
+IMAGE = "ghcr.io/anat0l/{arch}-addon-mosquitto-rkf"
 
 
 def read_text(path: Path) -> str:
@@ -83,10 +84,12 @@ def assert_patch_still_applies(version: str) -> None:
 def rewrite_config(text: str) -> str:
     rewritten: list[str] = []
     seen = {key: False for key in IDENTITY}
-    removed_image = False
+    wrote_image = False
     for line in text.splitlines(keepends=True):
         if line.startswith("image:"):
-            removed_image = True
+            ending = "\n" if line.endswith("\n") else ""
+            rewritten.append(f"image: {IMAGE}{ending}")
+            wrote_image = True
             continue
         key = line.split(":", 1)[0]
         if key in IDENTITY:
@@ -98,10 +101,10 @@ def rewrite_config(text: str) -> str:
     missing = [key for key, present in seen.items() if not present]
     if missing:
         raise SystemExit(f"config.yaml is missing: {', '.join(missing)}")
-    if not removed_image:
+    if not wrote_image:
         raise SystemExit(
             "Official config.yaml has no image: line. "
-            "Refusing to publish, because a prebuilt image would skip the patch."
+            "Refusing to publish, because Home Assistant would compile the add-on locally."
         )
     return "".join(rewritten)
 
@@ -136,8 +139,10 @@ def sync(upstream: Path, dest: Path) -> str:
 
     config = read_text(config_path)
     dockerfile = read_text(dockerfile_path)
-    if "slug: mosquitto-rkf" not in config or re.search(r"^image:", config, re.MULTILINE):
+    if "slug: mosquitto-rkf" not in config or f"image: {IMAGE}" not in config:
         raise SystemExit("config.yaml was not rewritten correctly")
+    if re.search(r"^image:\s*homeassistant/", config, re.MULTILINE):
+        raise SystemExit("official image name was not replaced")
     if PATCH not in dockerfile:
         raise SystemExit("Dockerfile patch was not inserted")
     if addon_version(config) != addon:

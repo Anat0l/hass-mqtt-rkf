@@ -12,14 +12,18 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 concurrency:
   group: sync-official-mosquitto
   cancel-in-progress: false
 
 jobs:
-  sync:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.stage.outputs.changed }}
+      version: ${{ steps.stage.outputs.version }}
     steps:
       - name: Checkout this add-on repository
         uses: actions/checkout@v4
@@ -36,19 +40,144 @@ jobs:
       - name: Copy upstream and apply the packet-id patch
         run: python scripts/sync_upstream.py --upstream /tmp/ha-addons/mosquitto --dest mosquitto
 
-      - name: Publish the synced add-on
+      - name: Detect changes
+        id: stage
         run: |
           set -euo pipefail
           git add --all -- mosquitto
-          git -C /tmp/ha-addons ls-files -s mosquitto | awk '$1 == "100755" { print $4 }' | while read -r path; do
+          git -C /tmp/ha-addons ls-files -s mosquitto | awk '$1 == "100755" { print $4 }' > executable-files.txt
+          while read -r path; do
             git update-index --chmod=+x "$path"
-          done
+          done < executable-files.txt
           if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No changes from the official add-on."
             exit 0
           fi
           version="$(awk '/^version:/{print $2; exit}' mosquitto/config.yaml)"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload synced add-on
+        if: steps.stage.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mosquitto-rkf
+          path: |
+            mosquitto
+            executable-files.txt
+          include-hidden-files: true
+          retention-days: 1
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-24.04
+          - arch: aarch64
+            os: ubuntu-24.04-arm
+    steps:
+      - name: Download synced add-on
+        uses: actions/download-artifact@v4
+        with:
+          name: mosquitto-rkf
+          path: .
+
+      - name: Restore executable bits
+        run: |
+          set -euo pipefail
+          while read -r path; do
+            chmod +x "$path"
+          done < executable-files.txt
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip when this version is already published
+        id: published
+        env:
+          ARCH: ${{ matrix.arch }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/anat0l/${ARCH}-addon-mosquitto-rkf:${VERSION}"
+          if docker buildx imagetools inspect "${image}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "${image} already exists"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish ${{ matrix.arch }}
+        if: steps.published.outputs.exists != 'true'
+        uses: home-assistant/builder@6cb4fd3d1338b6e22d0958a4bcb53e0965ea63b4 # 2026.02.1
+        with:
+          image: ${{ matrix.arch }}
+          args: |
+            --${{ matrix.arch }}
+            --target /data/mosquitto
+            --addon
+
+  publish:
+    needs: [prepare, build]
+    if: always() && needs.prepare.outputs.changed == 'true' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this add-on repository
+        uses: actions/checkout@v4
+
+      - name: Download synced add-on
+        uses: actions/download-artifact@v4
+        with:
+          name: mosquitto-rkf
+          path: .
+
+      - name: Make the images public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          for name in amd64-addon-mosquitto-rkf aarch64-addon-mosquitto-rkf; do
+            for attempt in 1 2 3 4 5 6; do
+              if gh api --method PUT \
+                "/user/packages/container/${name}/visibility" \
+                -f visibility=public >/dev/null; then
+                echo "${name} is public"
+                break
+              fi
+              if [[ "${attempt}" -eq 6 ]]; then
+                echo "Could not make ${name} public"
+                exit 1
+              fi
+              sleep $((attempt * 5))
+            done
+          done
+
+      - name: Commit the synced add-on
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          git add --all -- mosquitto
+          while read -r path; do
+            git update-index --chmod=+x "$path"
+          done < executable-files.txt
+          if git diff --cached --quiet; then
+            echo "Images were published and the repository already matches."
+            exit 0
+          fi
           git -c user.name='github-actions[bot]' \
               -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-              commit -m "Sync Mosquitto add-on ${version} from upstream"
+              commit -m "Publish Mosquitto add-on ${VERSION} images"
           git push
