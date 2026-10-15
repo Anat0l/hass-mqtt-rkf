@@ -1,0 +1,54 @@
+name: Sync official Mosquitto
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 08:15 Europe/Moscow, after the upstream add-on repository is usually updated.
+    - cron: "15 5 * * *"
+  push:
+    paths:
+      - .github/workflows/sync-official.yml
+      - scripts/sync_upstream.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-official-mosquitto
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this add-on repository
+        uses: actions/checkout@v4
+
+      - name: Fetch the official add-on
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/home-assistant/addons.git /tmp/ha-addons
+          git -C /tmp/ha-addons sparse-checkout set mosquitto
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Copy upstream and apply the packet-id patch
+        run: python scripts/sync_upstream.py --upstream /tmp/ha-addons/mosquitto --dest mosquitto
+
+      - name: Publish the synced add-on
+        run: |
+          set -euo pipefail
+          git add --all -- mosquitto
+          git -C /tmp/ha-addons ls-files -s mosquitto | awk '$1 == "100755" { print $4 }' | while read -r path; do
+            git update-index --chmod=+x "$path"
+          done
+          if git diff --cached --quiet; then
+            echo "No changes from the official add-on."
+            exit 0
+          fi
+          version="$(awk '/^version:/{print $2; exit}' mosquitto/config.yaml)"
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "Sync Mosquitto add-on ${version} from upstream"
+          git push
