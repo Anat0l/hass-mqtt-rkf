@@ -177,3 +177,30 @@ jobs:
               -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
               commit -m "Publish Mosquitto add-on ${VERSION} images"
           git push
+
+  release:
+    needs: [prepare, build, publish]
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.build.result != 'failure' &&
+      needs.build.result != 'cancelled' &&
+      (needs.publish.result == 'success' || needs.publish.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this add-on repository
+        uses: actions/checkout@v4
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(awk '/^version:/{print $2; exit}' mosquitto/config.yaml)"
+          if gh release view "${version}" >/dev/null 2>&1; then
+            echo "Release ${version} already exists"
+            exit 0
+          fi
+          gh release create "${version}" \
+            --title "Mosquitto broker (RKf) ${version}" \
+            --notes "Images: ghcr.io/anat0l/amd64-addon-mosquitto-rkf:${version} and ghcr.io/anat0l/aarch64-addon-mosquitto-rkf:${version}. Official Mosquitto add-on ${version}, plus the SUBSCRIBE packet-id 0 patch."
