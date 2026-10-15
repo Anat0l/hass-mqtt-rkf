@@ -124,8 +124,8 @@ jobs:
         with:
           image: ${{ matrix.arch }}
           args: |
-            --${{ matrix.arch }}
-            --target /data/mosquitto
+            --${{ matrix.arch }} \
+            --target /data/mosquitto \
             --addon
 
   publish:
