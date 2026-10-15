@@ -149,19 +149,15 @@ jobs:
         run: |
           set -euo pipefail
           for name in amd64-addon-mosquitto-rkf aarch64-addon-mosquitto-rkf; do
-            for attempt in 1 2 3 4 5 6; do
-              if gh api --method PUT \
-                "/user/packages/container/${name}/visibility" \
-                -f visibility=public >/dev/null; then
-                echo "${name} is public"
-                break
-              fi
-              if [[ "${attempt}" -eq 6 ]]; then
-                echo "Could not make ${name} public"
-                exit 1
-              fi
-              sleep $((attempt * 5))
-            done
+            gh api --method PUT \
+              "/user/packages/container/${name}/visibility" \
+              -f visibility=public || true
+            image="ghcr.io/anat0l/${name}:${VERSION}"
+            if ! docker buildx imagetools inspect "${image}" >/dev/null 2>&1; then
+              echo "${image} is not publicly pullable"
+              exit 1
+            fi
+            echo "${image} is public"
           done
 
       - name: Commit the synced add-on
