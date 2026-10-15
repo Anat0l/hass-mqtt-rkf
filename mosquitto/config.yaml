@@ -1,15 +1,12 @@
 ---
-version: 6.5.0b
+version: 7.1.1
 slug: mosquitto-rkf
 name: Mosquitto broker (RKf)
 description: An Open Source MQTT broker (RKf)
 url: https://github.com/Anat0l/hass-mqtt-rkf/tree/main/mosquitto
 arch:
-  - armhf
-  - armv7
   - aarch64
   - amd64
-  - i386
 auth_api: true
 discovery:
   - mqtt
@@ -18,6 +15,8 @@ map:
   - share
 options:
   logins: []
+  log_dest: []
+  log_type: []
   require_certificate: false
   certfile: fullchain.pem
   keyfile: privkey.pem
@@ -34,6 +33,10 @@ schema:
     - username: str
       password: password
       password_pre_hashed: "bool?"
+  log_dest:
+    - list(none|stdout|stderr|topic)?
+  log_type:
+    - list(none|debug|error|warning|notice|information|subscribe|unsubscribe|websockets|all)?
   require_certificate: bool
   certfile: str
   cafile: str?

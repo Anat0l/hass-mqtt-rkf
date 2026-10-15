@@ -19,6 +19,7 @@ RUN apt-get update \
         libc-ares-dev \
         libcjson1 \
         libcjson-dev \
+        libsqlite3-dev \
         xsltproc \
         docbook-xsl \
         golang-go \
@@ -42,7 +43,15 @@ RUN apt-get update \
        https://github.com/eclipse/mosquitto \
     \
     && cd mosquitto \
-    && sed 's%if(mid == 0) return MOSQ_ERR_MALFORMED_PACKET;%//if(mid == 0) return MOSQ_ERR_MALFORMED_PACKET;%g' ./src/handle_subscribe.c -i.bak \
+    # RKf: Mosquitto rejects SUBSCRIBE when the packet id is 0. Some clients send that.
+    && grep -q 'if(mid == 0){' src/handle_subscribe.c \
+    && sed -i '/if(mid == 0){/,/^[[:space:]]*}/{s|^|// RKf |}' src/handle_subscribe.c \
+    && ! grep -E -q '^[[:space:]]*if\(mid == 0\)\{' src/handle_subscribe.c \
+    && grep -q '// RKf' src/handle_subscribe.c \
+    # Disable editline used by mosquitto_ctrl
+    && sed -i 's/^WITH_EDITLINE=yes/#WITH_EDITLINE=yes/' config.mk \
+    # Disable REST API
+    && sed -i 's/^WITH_HTTP_API=yes/#WITH_HTTP_API=yes/' config.mk \
     && make WITH_WEBSOCKETS=yes WITH_SRV=yes \
     && make install \
     && cd .. \
@@ -53,6 +62,8 @@ RUN apt-get update \
     && cd mosquitto-go-auth \
     && sed -i 's/-I\/usr\/local\/include/-I\/usr\/include/' Makefile \
     && sed -i 's/LDFLAGS := .*$/& -Wl,-unresolved-symbols=ignore-all/' Makefile \
+    # Fix nil pointer dereference panic in ttlcache
+    && sed -i 's/return present, item.Value()/if item == nil { return false, false }\n\treturn true, item.Value()/' cache/cache.go \
     && make \
     && mkdir -p /usr/share/mosquitto \
     && cp -f go-auth.so /usr/share/mosquitto \
@@ -65,6 +76,7 @@ RUN apt-get update \
         libssl-dev \
         libc-ares-dev \
         libcjson-dev \
+        libsqlite3-dev \
         xsltproc \
         docbook-xsl \
         golang-go \
@@ -85,9 +97,5 @@ RUN apt-get update \
 
 # Copy rootfs
 COPY rootfs /
-
-RUN chmod a+x /etc/services.d/mosquitto/*
-RUN chmod a+x /etc/services.d/nginx/*
-RUN chmod a+x /etc/cont-init.d/*
 
 WORKDIR /

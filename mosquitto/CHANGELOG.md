@@ -1,5 +1,34 @@
 # Changelog
 
+## 7.1.1
+
+- Fix nil pointer dereference panic in go-auth ttlcache ACL check ([#4606](https://github.com/home-assistant/addons/issues/4606), [#4655](https://github.com/home-assistant/addons/issues/4655))
+
+## 7.1.0
+
+- Add `log_dest` and `log_type` configuration options
+
+## 7.0.1
+
+- Fix regression where clients with `/` in their client id (e.g. `govee2mqtt`) were rejected with "ACL denying access to client with dangerous client id" after the mosquitto 2.1 upgrade ([#4564](https://github.com/home-assistant/addons/issues/4564))
+
+## 7.0.0
+
+- Remove unsupported architectures (armhf, armv7, i386)
+- Update base image to Debian 13 (trixie)
+- Update mosquitto to 2.1.2, see [Mosquitto changelog](https://mosquitto.org/ChangeLog.txt) for the list of changes
+- Update libwebsockets to 4.5.8
+- Update mosquitto-go-auth to 3.0.0
+- Fix Home Assistant mqtt service (de)registration in init scripts
+
+## 6.5.2
+
+- Update mosquitto to version 2.0.22
+
+## 6.5.1
+
+- Update mosquitto to version 2.0.21
+
 ## 6.5.0
 
 - Update base image to Debian 12 (bookworm)
@@ -25,7 +54,7 @@
 
 ## 6.2.1
 
-- Add explicit dependencies for dynamic security plugin and asynchronous name resolver 
+- Add explicit dependencies for dynamic security plugin and asynchronous name resolver
 
 ## 6.2.0
 
@@ -52,7 +81,7 @@
 
 Note: Mosquitto 2.0.0 did contain some breaking changes. We don't anticipate
 most users to be affected by them but if you have a heavily customized mosquitto
-config we would advise reviewing [their changelog](https://mosquitto.org/ChangeLog.txt). 
+config we would advise reviewing [their changelog](https://mosquitto.org/ChangeLog.txt).
 
 ## 6.0.2
 
