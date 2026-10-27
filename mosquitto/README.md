@@ -11,4 +11,3 @@ You can use this app (formerly known as add-on) to install Eclipse Mosquitto, wh
 [mosquitto]: https://mosquitto.org
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
-

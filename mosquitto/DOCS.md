@@ -111,32 +111,36 @@ A file containing a root certificate. Place this file in the Home Assistant `ssl
 A file containing a certificate, including its chain. Place this file in the Home Assistant `ssl` folder.
 
 **Note on `certfile` and `keyfile`**
+
 - If `certfile` and `keyfile` are _not_ provided
   - Unencrypted connections are possible on the unencrypted ports (default: `1883`, `1884` for websockets)
 - If `certfile` and `keyfile` are provided
   - Unencrypted connections are possible on the unencrypted ports (default: `1883`, `1884` for websockets)
   - Encrypted connections are possible on the encrypted ports (default: `8883`, `8884` for websockets)
-     - In that case, the client must trust the server's certificate
+    - In that case, the client must trust the server's certificate
 
 ### Option: `keyfile`
 
 A file containing the private key. Place this file in the Home Assistant `ssl` folder.
 
 **Note on `certfile` and `keyfile`**
+
 - If `certfile` and `keyfile` are _not_ provided
   - Unencrypted connections are possible on the unencrypted ports (default: `1883`, `1884` for websockets)
 - If `certfile` and `keyfile` are provided
   - Unencrypted connections are possible on the unencrypted ports (default: `1883`, `1884` for websockets)
   - Encrypted connections are possible on the encrypted ports (default: `8883`, `8884` for websockets)
-     - In that case, the client must trust the server's certificate
+    - In that case, the client must trust the server's certificate
 
 ### Option: `require_certificate`
 
 If set to `false`:
+
 - Client is **not required** to provide a certificate to connect, username/password is enough
 - `cafile` option is ignored
 
 If set to `true`:
+
 - Client is **required** to provide its own certificate to connect, username/password is _not_ enough
 - A certificate authority (CA) must be provided: `cafile` option
 - The client certificate must be signed by the CA provided (`cafile`)
@@ -168,30 +172,30 @@ Add the following configuration to enable **unrestricted** access to all topics 
 
 1. Enable the customize flag
 
-    ```yaml
-      customize:
-        active: true
-        folder: mosquitto
-    ```
+   ```yaml
+   customize:
+     active: true
+     folder: mosquitto
+   ```
 
 2. Create `/share/mosquitto/acl.conf` with the contents:
 
-    ```text
-    acl_file /share/mosquitto/accesscontrollist
-    ```
+   ```text
+   acl_file /share/mosquitto/accesscontrollist
+   ```
 
 3. Create `/share/mosquitto/accesscontrollist` with the contents:
 
-    ```text
-    user addons
-    topic readwrite #
+   ```text
+   user addons
+   topic readwrite #
 
-    user homeassistant
-    topic readwrite #
+   user homeassistant
+   topic readwrite #
 
-    user [YOUR_MQTT_USER]
-    topic readwrite #
-    ```
+   user [YOUR_MQTT_USER]
+   topic readwrite #
+   ```
 
 The `/share` folder can be accessed via SMB, or on the host filesystem under `/usr/share/hassio/share`.
 
@@ -209,7 +213,7 @@ In case you've found a bug, please [open an issue on our GitHub][issue].
 
 [discord]: https://www.home-assistant.io/join-chat
 [forum]: https://community.home-assistant.io
-[issue]: https://github.com/home-assistant/addons/issues
+[issue]: https://github.com/home-assistant/app-mosquitto/issues
 [reddit]: https://reddit.com/r/homeassistant
 [repository]: https://github.com/hassio-addons/repository
 [mosquitto]: https://mosquitto.org/

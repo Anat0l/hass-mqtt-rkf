@@ -1,18 +1,17 @@
-ARG BUILD_FROM
+# Base image updated by Renovate, update versionCompatibility on Debian base bump
+ARG BUILD_FROM=ghcr.io/home-assistant/base-debian:trixie-2026.10.1@sha256:e222afd25b64e5e62ac2f155b6f73e930a91967d039e0d22384abb9ef6d47e59
 FROM $BUILD_FROM
 
 # Install mosquitto + auth plugin
 WORKDIR /usr/src
-ARG LIBWEBSOCKET_VERSION
-ARG MOSQUITTO_VERSION
-ARG MOSQUITTO_AUTH_VERSION
+ARG MOSQUITTO_VERSION=2.1.2
+ARG MOSQUITTO_AUTH_VERSION=3.0.0
 COPY patches/0001-Fix-builtin-websockets-dropping-the-session-on-an-empty-data-frame.patch /usr/src
 RUN apt-get update \
     && apt-get install -qy --no-install-recommends \
         nginx \
         pwgen \
         build-essential \
-        cmake \
         git \
         openssl \
         patch \
@@ -26,20 +25,6 @@ RUN apt-get update \
         docbook-xsl \
         golang-go \
     \
-    # Compile and install libwebsocket
-    #
-    # DLWS_WITHOUT_TESTAPPS is just a workaround, see
-    # https://github.com/warmcat/libwebsockets/issues/2790 for more
-    && git clone --depth 1 -b "v${LIBWEBSOCKET_VERSION}" \
-       https://github.com/warmcat/libwebsockets \
-    \
-    && cd libwebsockets \
-    && mkdir build \
-    && cd build \
-    && cmake -DLWS_WITH_EXTERNAL_POLL=ON -DLWS_WITHOUT_TESTAPPS=ON .. \
-    && make install \
-    && ldconfig \
-    && cd ../.. \
     # Compile and install mosquitto
     && git clone --depth 1 -b "v${MOSQUITTO_VERSION}" \
        https://github.com/eclipse/mosquitto \
@@ -76,7 +61,6 @@ RUN apt-get update \
         build-essential \
         git \
         patch \
-        cmake \
         libssl-dev \
         libc-ares-dev \
         libcjson-dev \
@@ -90,7 +74,6 @@ RUN apt-get update \
         /etc/mosquitto/* \
         /etc/nginx/* \
         /usr/share/nginx \
-        /usr/src/libwebsockets \
         /usr/src/mosquitto \
         /usr/src/mosquitto-go-auth \
         /usr/src/*.patch \
@@ -103,4 +86,13 @@ RUN apt-get update \
 # Copy rootfs
 COPY rootfs /
 
+HEALTHCHECK --start-period=30s --start-interval=5s --interval=30s \
+    CMD bash -c '</dev/tcp/127.0.0.1/1883' || exit 1
+
 WORKDIR /
+
+LABEL \
+    org.opencontainers.image.title="Home Assistant App: Mosquitto broker" \
+    org.opencontainers.image.description="An Open Source MQTT broker" \
+    org.opencontainers.image.source="https://github.com/home-assistant/app-mosquitto" \
+    org.opencontainers.image.licenses="Apache License 2.0"

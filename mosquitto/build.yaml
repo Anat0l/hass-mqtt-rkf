@@ -1,8 +1,3 @@
----
 build_from:
-  aarch64: ghcr.io/home-assistant/aarch64-base-debian:trixie
-  amd64: ghcr.io/home-assistant/amd64-base-debian:trixie
-args:
-  LIBWEBSOCKET_VERSION: 4.5.8
-  MOSQUITTO_VERSION: 2.1.2
-  MOSQUITTO_AUTH_VERSION: 3.0.0
+  aarch64: "ghcr.io/home-assistant/base-debian:trixie-2026.10.1@sha256:e222afd25b64e5e62ac2f155b6f73e930a91967d039e0d22384abb9ef6d47e59"
+  amd64: "ghcr.io/home-assistant/base-debian:trixie-2026.10.1@sha256:e222afd25b64e5e62ac2f155b6f73e930a91967d039e0d22384abb9ef6d47e59"

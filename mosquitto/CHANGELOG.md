@@ -1,5 +1,12 @@
 # Changelog
 
+## 7.1.3
+
+- Stop building libwebsockets
+- Update base image to trixie-2026.10.1
+- Replace watchdog with Docker HEALTHCHECK
+- Publish app to GHCR
+
 ## 7.1.2
 
 - Fix handling of WebSocket data frames with an empty payload in the built-in WebSocket listener ([eclipse-mosquitto/mosquitto#3704](https://github.com/eclipse-mosquitto/mosquitto/issues/3704))
