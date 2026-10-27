@@ -66,6 +66,34 @@ def mosquitto_version_from_dockerfile(dockerfile: str) -> str:
     return match.group(1)
 
 
+def base_image(dockerfile: str) -> str:
+    match = re.search(r"^ARG BUILD_FROM=(\S+)\s*$", dockerfile, re.MULTILINE)
+    if not match:
+        raise SystemExit("BUILD_FROM was not found in the Dockerfile")
+    image = match.group(1)
+    if image.startswith("$"):
+        raise SystemExit(f"BUILD_FROM is not a concrete image: {image}")
+    return image
+
+
+def write_build_yaml(dest: Path, image: str) -> None:
+    """Tell the legacy add-on builder which base image to use.
+
+    Without build.yaml it ignores the Dockerfile default and uses
+    ghcr.io/home-assistant/<arch>-base:latest. The current Dockerfile is
+    written for the Debian image named by ARG BUILD_FROM.
+    """
+    if (dest / "build.yaml").is_file() or (dest / "build.yml").is_file():
+        return
+    quoted = image.replace('"', "")
+    text = (
+        "build_from:\n"
+        f'  aarch64: "{quoted}"\n'
+        f'  amd64: "{quoted}"\n'
+    )
+    (dest / "build.yaml").write_bytes(text.encode("utf-8"))
+
+
 def addon_version(config_yaml: str) -> str:
     match = re.search(r"^version:\s*(\S+)\s*$", config_yaml, re.MULTILINE)
     if not match:
@@ -168,6 +196,8 @@ def sync(store: Path, sources: Path, dest: Path) -> str:
     config_path.write_bytes(rewrite_config(read_text(config_path)).encode("utf-8"))
     dockerfile_path = dest / "Dockerfile"
     dockerfile_path.write_bytes(rewrite_dockerfile(read_text(dockerfile_path)).encode("utf-8"))
+    if not (sources / "build.yaml").is_file() and not (sources / "build.yml").is_file():
+        write_build_yaml(dest, base_image(dockerfile_text))
 
     config = read_text(config_path)
     dockerfile = read_text(dockerfile_path)
@@ -179,6 +209,8 @@ def sync(store: Path, sources: Path, dest: Path) -> str:
         raise SystemExit("Dockerfile patch was not inserted")
     if addon_version(config) != addon:
         raise SystemExit("Add-on version changed while rewriting config.yaml")
+    if not (dest / "build.yaml").is_file() and not (dest / "build.yml").is_file():
+        raise SystemExit("build.yaml is missing, so the builder would use the wrong base image")
     return addon
 
 
