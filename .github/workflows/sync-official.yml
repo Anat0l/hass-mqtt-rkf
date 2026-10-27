@@ -32,20 +32,22 @@ jobs:
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/home-assistant/addons.git /tmp/ha-addons
           git -C /tmp/ha-addons sparse-checkout set mosquitto
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/home-assistant/app-mosquitto.git /tmp/app-mosquitto
+          git -C /tmp/app-mosquitto sparse-checkout set mosquitto
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Copy upstream and apply the packet-id patch
-        run: python scripts/sync_upstream.py --upstream /tmp/ha-addons/mosquitto --dest mosquitto
+        run: python scripts/sync_upstream.py --store /tmp/ha-addons/mosquitto --sources /tmp/app-mosquitto/mosquitto --dest mosquitto
 
       - name: Detect changes
         id: stage
         run: |
           set -euo pipefail
           git add --all -- mosquitto
-          git -C /tmp/ha-addons ls-files -s mosquitto | awk '$1 == "100755" { print $4 }' > executable-files.txt
+          git -C /tmp/app-mosquitto ls-files -s mosquitto | awk '$1 == "100755" { print $4 }' > executable-files.txt
           while read -r path; do
             git update-index --chmod=+x "$path"
           done < executable-files.txt

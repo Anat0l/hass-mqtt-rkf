@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Copy the official Mosquitto add-on and keep one local change.
 
-The official add-on is taken from home-assistant/addons. This script points
-`image` at the prebuilt GHCR images for this repository, then inserts a build
-step that comments out Mosquitto's rejection of SUBSCRIBE packets whose packet
-identifier is 0.
+The released add-on metadata comes from home-assistant/addons. Since 7.1.3 the
+build files live in home-assistant/app-mosquitto. This script combines those
+two trees, points `image` at the prebuilt GHCR images for this repository, and
+inserts a build step that comments out Mosquitto's rejection of SUBSCRIBE
+packets whose packet identifier is 0.
 
 The sync stops if that check is no longer exactly the expected three lines.
 A newer official release is not published with a patch that did not apply.
@@ -55,6 +56,13 @@ def mosquitto_version(build_yaml: str) -> str:
     match = re.search(r"^  MOSQUITTO_VERSION:\s*(\S+)\s*$", build_yaml, re.MULTILINE)
     if not match:
         raise SystemExit("MOSQUITTO_VERSION was not found in build.yaml")
+    return match.group(1)
+
+
+def mosquitto_version_from_dockerfile(dockerfile: str) -> str:
+    match = re.search(r"^ARG MOSQUITTO_VERSION=(\S+)\s*$", dockerfile, re.MULTILINE)
+    if not match:
+        raise SystemExit("MOSQUITTO_VERSION was not found in the Dockerfile")
     return match.group(1)
 
 
@@ -118,19 +126,43 @@ def rewrite_dockerfile(text: str) -> str:
     return text.replace(CD_MARKER, CD_MARKER + PATCH, 1)
 
 
-def sync(upstream: Path, dest: Path) -> str:
-    if not (upstream / "config.yaml").is_file() or not (upstream / "Dockerfile").is_file():
-        raise SystemExit(f"Not an add-on directory: {upstream}")
-    if dest.resolve() == upstream.resolve():
-        raise SystemExit("Destination and upstream must be different directories")
+STORE_FILES = ("config.yaml", "CHANGELOG.md", "DOCS.md", "README.md", "icon.png", "logo.png")
 
-    version = mosquitto_version(read_text(upstream / "build.yaml"))
-    addon = addon_version(read_text(upstream / "config.yaml"))
-    assert_patch_still_applies(version)
+
+def overlay_store(store: Path, dest: Path) -> None:
+    for name in STORE_FILES:
+        source = store / name
+        if source.is_file():
+            shutil.copy2(source, dest / name)
+    translations = store / "translations"
+    if not translations.is_dir():
+        return
+    destination = dest / "translations"
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(translations, destination)
+
+
+def sync(store: Path, sources: Path, dest: Path) -> str:
+    if not (store / "config.yaml").is_file():
+        raise SystemExit(f"Add-on metadata is missing config.yaml: {store}")
+    if not (sources / "Dockerfile").is_file():
+        raise SystemExit(f"Build sources are missing a Dockerfile: {sources}")
+    if dest.resolve() in {store.resolve(), sources.resolve()}:
+        raise SystemExit("Destination must be different from the store and the sources")
+
+    dockerfile_text = read_text(sources / "Dockerfile")
+    if (sources / "build.yaml").is_file():
+        engine_version = mosquitto_version(read_text(sources / "build.yaml"))
+    else:
+        engine_version = mosquitto_version_from_dockerfile(dockerfile_text)
+    addon = addon_version(read_text(store / "config.yaml"))
+    assert_patch_still_applies(engine_version)
 
     if dest.exists():
         shutil.rmtree(dest)
-    shutil.copytree(upstream, dest)
+    shutil.copytree(sources, dest)
+    overlay_store(store, dest)
 
     config_path = dest / "config.yaml"
     config_path.write_bytes(rewrite_config(read_text(config_path)).encode("utf-8"))
@@ -141,7 +173,7 @@ def sync(upstream: Path, dest: Path) -> str:
     dockerfile = read_text(dockerfile_path)
     if "slug: mosquitto-rkf" not in config or f"image: {IMAGE}" not in config:
         raise SystemExit("config.yaml was not rewritten correctly")
-    if re.search(r"^image:\s*homeassistant/", config, re.MULTILINE):
+    if "ghcr.io/home-assistant/" in config or re.search(r"^image:\s*homeassistant/", config, re.MULTILINE):
         raise SystemExit("official image name was not replaced")
     if PATCH not in dockerfile:
         raise SystemExit("Dockerfile patch was not inserted")
@@ -152,10 +184,11 @@ def sync(upstream: Path, dest: Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--upstream", type=Path, required=True)
+    parser.add_argument("--store", type=Path, required=True)
+    parser.add_argument("--sources", type=Path, required=True)
     parser.add_argument("--dest", type=Path, required=True)
     args = parser.parse_args()
-    version = sync(args.upstream, args.dest)
+    version = sync(args.store, args.sources, args.dest)
     print(f"Synced Mosquitto add-on {version}")
     output = os.environ.get("GITHUB_OUTPUT")
     if output:
