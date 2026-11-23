@@ -4,7 +4,7 @@ FROM $BUILD_FROM
 
 # Install mosquitto + auth plugin
 WORKDIR /usr/src
-ARG MOSQUITTO_VERSION=2.1.2
+ARG MOSQUITTO_VERSION=2.1.4
 ARG MOSQUITTO_AUTH_VERSION=3.0.0
 COPY patches/0001-Fix-builtin-websockets-dropping-the-session-on-an-empty-data-frame.patch /usr/src
 RUN apt-get update \
