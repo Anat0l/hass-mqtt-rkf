@@ -1,5 +1,5 @@
 # Base image updated by Renovate, update versionCompatibility on Debian base bump
-ARG BUILD_FROM=ghcr.io/home-assistant/base-debian:trixie-2026.11.0@sha256:d996c8f8ef0096a1ac3756766149b31b8171afc663068cc192f2bcab20f1b8c9
+ARG BUILD_FROM=ghcr.io/home-assistant/base-debian:trixie-2026.11.1@sha256:a7e1db1748f4b3c2d5c01d680f5f85ab32bfd3a0d320d1a9647e6a74e049ed9e
 FROM $BUILD_FROM
 
 # Install mosquitto + auth plugin
